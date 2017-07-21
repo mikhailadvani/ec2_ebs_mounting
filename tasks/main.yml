@@ -1,0 +1,82 @@
+---
+# tasks file for ec2_ebs_mounting
+
+- name: Initialize empty lists
+  set_fact:
+    existing_swap_volumes: []
+    swap_volumes: []
+    data_volumes: []
+    user_volumes: []
+
+- name: Fetch swap info
+  command: /sbin/swapon -s
+  register: swapon
+  changed_when: false
+
+- name: Identify existing swap volumes
+  set_fact:
+    existing_swap_volumes: "{{ existing_swap_volumes + [ item.split(' ')[0] ] }}"
+  with_items: "{{swapon.stdout_lines}}"
+  when: item | match('^/dev')
+
+- name: Identify volumes to be created as swap volumes
+  set_fact:
+    swap_volumes: "{{ swap_volumes + [ item ] }}"
+  with_items: "{{instance.volumes}}"
+  when: item.MountSpecifications.mountpoint == "swap" and item.EBSSpecifications.device_name not in existing_swap_volumes
+
+- name: Setup linux swap area on swap volumes
+  command: "mkswap {{item.EBSSpecifications.device_name}}"
+  with_items: "{{swap_volumes}}"
+  become: yes
+
+- name: Create swap volumes
+  command: "swapon {{item.EBSSpecifications.device_name}}"
+  with_items: "{{swap_volumes}}"
+  become: yes
+
+- name: Add swap volume entry to fstab
+  lineinfile:
+    line: "{{item.EBSSpecifications.device_name}}       none    swap    sw  0       0"
+    path: /etc/fstab
+  with_items: "{{swap_volumes}}"
+  become: yes
+
+- name: Identify non-root data volumes
+  set_fact:
+    data_volumes: "{{ data_volumes + [ item ] }}"
+  with_items: "{{instance.volumes}}"
+  when: item.MountSpecifications.mountpoint != "/" and item.MountSpecifications.mountpoint != "swap"
+
+- name: Create file systems for volumes
+  filesystem: fstype=ext4 dev={{item.EBSSpecifications.device_name}} opts="-L {{item.MountSpecifications.volume_label}}" force=no
+  with_items: "{{data_volumes}}"
+  become: yes
+
+- name: Mount the filesystems
+  mount: name={{item.MountSpecifications.mountpoint}} fstype=ext4 state=mounted dump=0 passno=0 src='LABEL={{item.MountSpecifications.volume_label}}'
+  with_items: "{{data_volumes}}"
+  become: yes
+
+- name: Identify users to be created
+  set_fact:
+    user_volumes: "{{ user_volumes + [ item ] }}"
+  with_items: "{{instance.volumes}}"
+  when: item.MountSpecifications.owner is defined
+  become: yes
+
+- name: Create users
+  user:
+    name: "{{item.MountSpecifications.owner.name|default(omit)}}"
+    uid: "{{item.MountSpecifications.owner.uid|default(omit)}}"
+    home: "{{item.MountSpecifications.owner.home_dir|default(omit)}}"
+  with_items: "{{user_volumes}}"
+  become: yes
+
+- name: Set owner for mount point directories
+  file:
+    state: directory
+    owner: "{{item.MountSpecifications.owner.name}}"
+    path: "{{item.MountSpecifications.mountpoint}}"
+  with_items: "{{user_volumes}}"
+  become: yes

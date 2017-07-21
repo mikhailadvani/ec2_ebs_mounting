@@ -1,0 +1,18 @@
+galaxy_info:
+  author: Mikhail Advani
+  description: Ansible role to configure EBS volumes on EC2 instances
+  license: Apache
+
+  min_ansible_version: 2.3
+
+  platforms:
+  - name: Amazon
+    versions:
+    - all
+  - name: EL
+    versions:
+    - 6
+  galaxy_tags:
+    - aws
+    - ec2
+    - ebs
