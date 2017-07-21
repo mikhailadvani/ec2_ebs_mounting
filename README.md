@@ -4,7 +4,7 @@ ec2_ebs_mounting
 [![Build Status](https://travis-ci.org/mikhailadvani/ec2_ebs_mounting.svg?branch=master)](https://travis-ci.org/mikhailadvani/ec2_ebs_mounting) [![Galaxy](https://img.shields.io/badge/ansible--galaxy-mikhailadvani.ec2_ebs_mounting-blue.svg)](https://galaxy.ansible.com/mikhailadvani/ec2_ebs_mounting)
 
 
-Ansible role to provision EC2 instances with security group(s)
+Ansible role to mount EBS block devices as data or swap volumes
 
 ### Required variables
 
