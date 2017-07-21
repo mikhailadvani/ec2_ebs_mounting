@@ -1,4 +1,4 @@
 ---
 - hosts: localhost
   roles:
-    - provision_ec2_instance
+    - ec2_ebs_mounting
